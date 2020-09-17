@@ -1,0 +1,38 @@
+{
+  "generator-jhipster": {
+    "promptValues": {
+      "packageName": "br.com.planets"
+    },
+    "jhipsterVersion": "6.10.1",
+    "applicationType": "monolith",
+    "baseName": "ApiPlanets",
+    "packageName": "br.com.planets",
+    "packageFolder": "br/com/planets",
+    "serverPort": "8080",
+    "authenticationType": "jwt",
+    "cacheProvider": "ehcache",
+    "enableHibernateCache": true,
+    "websocket": false,
+    "databaseType": "sql",
+    "devDatabaseType": "oracle",
+    "prodDatabaseType": "oracle",
+    "searchEngine": false,
+    "messageBroker": false,
+    "serviceDiscoveryType": false,
+    "buildTool": "maven",
+    "enableSwaggerCodegen": true,
+    "jwtSecretKey": "YjM1MGUwNzAxZWJmYzVkZDllYTFiODkwZTgyNDk4Mjk0MDBmMTJmYzQ3YWQ2M2M2YTU5OGViMWRjMTQ5OTQ2YTZkMmY4OTM0NGQxN2EwN2U0MTk3ZGZlNDNkOTUwOTE2NTU4NGY0Y2NhODM0ZDc3NDA0ODNjZTAzZjgxOTA4NjQ=",
+    "embeddableLaunchScript": false,
+    "useSass": true,
+    "clientPackageManager": "npm",
+    "skipClient": true,
+    "creationTimestamp": 1600373463422,
+    "testFrameworks": ["gatling"],
+    "jhiPrefix": "jhi",
+    "entitySuffix": "",
+    "dtoSuffix": "DTO",
+    "otherModules": [],
+    "enableTranslation": false,
+    "blueprints": []
+  }
+}
