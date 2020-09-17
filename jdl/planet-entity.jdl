@@ -1,0 +1,11 @@
+entity Planet {
+	nome 	  String required unique maxlength(150),
+	clima 	  String required maxlength(150),
+	terreno   String required maxlength(150),
+	aparicoes Integer required		
+}
+
+dto * with mapstruct  
+service all with serviceImpl
+
+
