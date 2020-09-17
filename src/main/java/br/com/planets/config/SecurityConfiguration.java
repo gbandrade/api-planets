@@ -1,5 +1,6 @@
 package br.com.planets.config;
 
+import br.com.planets.components.HttpRequest;
 import br.com.planets.security.*;
 import br.com.planets.security.jwt.*;
 
@@ -93,5 +94,10 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
     private JWTConfigurer securityConfigurerAdapter() {
         return new JWTConfigurer(tokenProvider);
+    }
+    
+    @Bean
+    public HttpRequest httpRequest() {
+    	return new HttpRequest();
     }
 }
