@@ -1,22 +1,47 @@
 package br.com.planets.web.rest;
 
-import br.com.planets.service.PlanetService;
-import br.com.planets.web.rest.errors.BadRequestAlertException;
-import br.com.planets.service.dto.PlanetDTO;
-
-import io.github.jhipster.web.util.HeaderUtil;
-import io.github.jhipster.web.util.ResponseUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import javax.validation.Valid;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+
+import javax.validation.Valid;
+
+import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
+import org.hibernate.exception.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.configurationprocessor.json.JSONArray;
+import org.springframework.boot.configurationprocessor.json.JSONException;
+import org.springframework.boot.configurationprocessor.json.JSONObject;
+import org.springframework.context.MessageSource;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import br.com.planets.components.HttpRequest;
+import br.com.planets.config.ApplicationProperties;
+import br.com.planets.service.PlanetService;
+import br.com.planets.service.dto.PlanetDTO;
+import br.com.planets.web.rest.errors.BadRequestAlertException;
+import io.github.jhipster.web.util.HeaderUtil;
+import io.github.jhipster.web.util.PaginationUtil;
+import io.github.jhipster.web.util.ResponseUtil;
 
 /**
  * REST controller for managing {@link br.com.planets.domain.Planet}.
@@ -33,9 +58,16 @@ public class PlanetResource {
     private String applicationName;
 
     private final PlanetService planetService;
-
-    public PlanetResource(PlanetService planetService) {
+    private final HttpRequest httpRequest;
+    private final ApplicationProperties prop;
+    private final MessageSource messageSource;
+    
+    public PlanetResource(PlanetService planetService, HttpRequest httpRequest, 
+    		ApplicationProperties prop, MessageSource messageSource) {
         this.planetService = planetService;
+        this.httpRequest = httpRequest;
+        this.prop = prop;
+        this.messageSource = messageSource;
     }
 
     /**
@@ -44,38 +76,47 @@ public class PlanetResource {
      * @param planetDTO the planetDTO to create.
      * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with body the new planetDTO, or with status {@code 400 (Bad Request)} if the planet has already an ID.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
+     * @throws IOException 
+     * @throws ClientProtocolException 
+     * @throws JSONException 
      */
     @PostMapping("/planets")
-    public ResponseEntity<PlanetDTO> createPlanet(@Valid @RequestBody PlanetDTO planetDTO) throws URISyntaxException {
-        log.debug("REST request to save Planet : {}", planetDTO);
-        if (planetDTO.getId() != null) {
+    public ResponseEntity<PlanetDTO> createPlanet(@Valid @RequestBody PlanetDTO planetDTO) throws URISyntaxException, ClientProtocolException, IOException, JSONException {
+    	log.debug("REST request to save Planet : {}", planetDTO);
+        
+    	if (planetDTO.getId() != null) {
             throw new BadRequestAlertException("A new planet cannot already have an ID", ENTITY_NAME, "idexists");
         }
-        PlanetDTO result = planetService.save(planetDTO);
-        return ResponseEntity.created(new URI("/api/planets/" + result.getId()))
-            .headers(HeaderUtil.createEntityCreationAlert(applicationName, false, ENTITY_NAME, result.getId().toString()))
-            .body(result);
-    }
-
-    /**
-     * {@code PUT  /planets} : Updates an existing planet.
-     *
-     * @param planetDTO the planetDTO to update.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated planetDTO,
-     * or with status {@code 400 (Bad Request)} if the planetDTO is not valid,
-     * or with status {@code 500 (Internal Server Error)} if the planetDTO couldn't be updated.
-     * @throws URISyntaxException if the Location URI syntax is incorrect.
-     */
-    @PutMapping("/planets")
-    public ResponseEntity<PlanetDTO> updatePlanet(@Valid @RequestBody PlanetDTO planetDTO) throws URISyntaxException {
-        log.debug("REST request to update Planet : {}", planetDTO);
-        if (planetDTO.getId() == null) {
-            throw new BadRequestAlertException("Invalid id", ENTITY_NAME, "idnull");
+        
+        HttpResponse httpResponse = 
+        		httpRequest.get(prop.getApi().getPath() + prop.getApi().getEndpoint().getGetPlanets() + planetDTO.getNome());
+        JSONArray results = 
+        		httpRequest.getResponseObject(httpResponse).getJSONArray("results");
+        
+        if(results.length() == 0) 	
+        	throw new BadRequestAlertException(messageSource.getMessage("planet.invalid.name.message", null, Locale.ENGLISH), 
+        			ENTITY_NAME, 
+        			"invalid_name");
+        else {
+        	JSONObject planetInfo = results.getJSONObject(0);
+        	planetDTO.setAparicoes(((JSONArray) planetInfo.get("films")).length());
         }
-        PlanetDTO result = planetService.save(planetDTO);
-        return ResponseEntity.ok()
-            .headers(HeaderUtil.createEntityUpdateAlert(applicationName, false, ENTITY_NAME, planetDTO.getId().toString()))
-            .body(result);
+        
+        try {
+        	planetDTO = planetService.save(planetDTO);
+        } catch (DataIntegrityViolationException e) {
+        	if(e.contains(ConstraintViolationException.class)) {
+        		ConstraintViolationException violation = 
+						(ConstraintViolationException) e.getCause();
+				if(violation.getConstraintName().equals("SYSTEM.UX_PLANET_NOME")) {
+					throw new BadRequestAlertException(messageSource.getMessage("planet.name.inuse", null, Locale.ENGLISH), ENTITY_NAME, "name_in_use");
+				}
+        	}
+		}
+        
+        return ResponseEntity.created(new URI("/api/planets/" + planetDTO.getId()))
+                .headers(HeaderUtil.createEntityCreationAlert(applicationName, false, ENTITY_NAME, planetDTO.getId().toString()))
+                .body(planetDTO);
     }
 
     /**
@@ -84,9 +125,11 @@ public class PlanetResource {
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of planets in body.
      */
     @GetMapping("/planets")
-    public List<PlanetDTO> getAllPlanets() {
+    public ResponseEntity<List<PlanetDTO>> getAllPlanets(Pageable pageable) {
         log.debug("REST request to get all Planets");
-        return planetService.findAll();
+        final Page<PlanetDTO> page = planetService.findAll(pageable);
+        HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
+        return new ResponseEntity<>(page.getContent(), headers, HttpStatus.OK);
     }
 
     /**
@@ -95,10 +138,23 @@ public class PlanetResource {
      * @param id the id of the planetDTO to retrieve.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the planetDTO, or with status {@code 404 (Not Found)}.
      */
-    @GetMapping("/planets/{id}")
+    @GetMapping("/planets/findByid/{id}")
     public ResponseEntity<PlanetDTO> getPlanet(@PathVariable Long id) {
         log.debug("REST request to get Planet : {}", id);
         Optional<PlanetDTO> planetDTO = planetService.findOne(id);
+        return ResponseUtil.wrapOrNotFound(planetDTO);
+    }
+    
+    /**
+     * {@code GET  /planets/:name} : get the "name" planet.
+     *
+     * @param name the name of the planetDTO to retrieve.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the planetDTO, or with status {@code 404 (Not Found)}.
+     */
+    @GetMapping("/planets/findByname/{name}")
+    public ResponseEntity<PlanetDTO> getPlanet(@PathVariable String name) {
+        log.debug("REST request to get Planet by name: {}", name);
+        Optional<PlanetDTO> planetDTO = planetService.findOneByNome(name);
         return ResponseUtil.wrapOrNotFound(planetDTO);
     }
 
