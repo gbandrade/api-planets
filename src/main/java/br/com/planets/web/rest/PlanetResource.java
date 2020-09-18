@@ -3,6 +3,8 @@ package br.com.planets.web.rest;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -14,6 +16,7 @@ import org.apache.http.client.ClientProtocolException;
 import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.configurationprocessor.json.JSONArray;
 import org.springframework.boot.configurationprocessor.json.JSONException;
@@ -37,6 +40,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import br.com.planets.components.HttpRequest;
 import br.com.planets.config.ApplicationProperties;
 import br.com.planets.service.PlanetService;
+import br.com.planets.service.dto.PlanetCreateDTO;
 import br.com.planets.service.dto.PlanetDTO;
 import br.com.planets.web.rest.errors.BadRequestAlertException;
 import io.github.jhipster.web.util.HeaderUtil;
@@ -73,7 +77,7 @@ public class PlanetResource {
     /**
      * {@code POST  /planets} : Create a new planet.
      *
-     * @param planetDTO the planetDTO to create.
+     * @param planetCreatedDTO the planetDTO to create.
      * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with body the new planetDTO, or with status {@code 400 (Bad Request)} if the planet has already an ID.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      * @throws IOException 
@@ -81,15 +85,17 @@ public class PlanetResource {
      * @throws JSONException 
      */
     @PostMapping("/planets")
-    public ResponseEntity<PlanetDTO> createPlanet(@Valid @RequestBody PlanetDTO planetDTO) throws URISyntaxException, ClientProtocolException, IOException, JSONException {
-    	log.debug("REST request to save Planet : {}", planetDTO);
-        
-    	if (planetDTO.getId() != null) {
+    public ResponseEntity<PlanetDTO> createPlanet(@Valid @RequestBody PlanetCreateDTO planetCreatedDTO) throws URISyntaxException, ClientProtocolException, IOException, JSONException {
+    	log.debug("REST request to save Planet : {}", planetCreatedDTO);
+    	PlanetDTO planetDTO = new PlanetDTO();
+    	
+    	if (planetCreatedDTO.getId() != null) {
             throw new BadRequestAlertException("A new planet cannot already have an ID", ENTITY_NAME, "idexists");
         }
         
         HttpResponse httpResponse = 
-        		httpRequest.get(prop.getApi().getPath() + prop.getApi().getEndpoint().getGetPlanets() + planetDTO.getNome());
+        		httpRequest.get(prop.getApi().getPath() + prop.getApi().getEndpoint().getGetPlanets() + 
+        				URLEncoder.encode(planetCreatedDTO.getNome(), StandardCharsets.UTF_8));
         JSONArray results = 
         		httpRequest.getResponseObject(httpResponse).getJSONArray("results");
         
@@ -99,6 +105,7 @@ public class PlanetResource {
         			"invalid_name");
         else {
         	JSONObject planetInfo = results.getJSONObject(0);
+        	BeanUtils.copyProperties(planetCreatedDTO, planetDTO);
         	planetDTO.setAparicoes(((JSONArray) planetInfo.get("films")).length());
         }
         
@@ -114,7 +121,7 @@ public class PlanetResource {
         	}
 		}
         
-        return ResponseEntity.created(new URI("/api/planets/" + planetDTO.getId()))
+        return ResponseEntity.created(new URI("/api/planets/" + planetCreatedDTO.getId()))
                 .headers(HeaderUtil.createEntityCreationAlert(applicationName, false, ENTITY_NAME, planetDTO.getId().toString()))
                 .body(planetDTO);
     }
