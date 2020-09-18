@@ -178,26 +178,6 @@ public class PlanetResourceIT {
 
     @Test
     @Transactional
-    public void checkAparicoesIsRequired() throws Exception {
-        int databaseSizeBeforeTest = planetRepository.findAll().size();
-        // set the field null
-        planet.setAparicoes(null);
-
-        // Create the Planet, which fails.
-        PlanetDTO planetDTO = planetMapper.toDto(planet);
-
-
-        restPlanetMockMvc.perform(post("/api/planets")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(TestUtil.convertObjectToJsonBytes(planetDTO)))
-            .andExpect(status().isBadRequest());
-
-        List<Planet> planetList = planetRepository.findAll();
-        assertThat(planetList).hasSize(databaseSizeBeforeTest);
-    }
-
-    @Test
-    @Transactional
     public void getAllPlanets() throws Exception {
         // Initialize the database
         planetRepository.saveAndFlush(planet);
