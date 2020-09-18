@@ -97,27 +97,6 @@ public class PlanetResourceIT {
 
     @Test
     @Transactional
-    public void createPlanet() throws Exception {
-        int databaseSizeBeforeCreate = planetRepository.findAll().size();
-        // Create the Planet
-        PlanetDTO planetDTO = planetMapper.toDto(planet);
-        restPlanetMockMvc.perform(post("/api/planets")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(TestUtil.convertObjectToJsonBytes(planetDTO)))
-            .andExpect(status().isCreated());
-
-        // Validate the Planet in the database
-        List<Planet> planetList = planetRepository.findAll();
-        assertThat(planetList).hasSize(databaseSizeBeforeCreate + 1);
-        Planet testPlanet = planetList.get(planetList.size() - 1);
-        assertThat(testPlanet.getNome()).isEqualTo(DEFAULT_NOME);
-        assertThat(testPlanet.getClima()).isEqualTo(DEFAULT_CLIMA);
-        assertThat(testPlanet.getTerreno()).isEqualTo(DEFAULT_TERRENO);
-        assertThat(testPlanet.getAparicoes()).isEqualTo(DEFAULT_APARICOES);
-    }
-
-    @Test
-    @Transactional
     public void createPlanetWithExistingId() throws Exception {
         int databaseSizeBeforeCreate = planetRepository.findAll().size();
 
@@ -241,7 +220,7 @@ public class PlanetResourceIT {
         planetRepository.saveAndFlush(planet);
 
         // Get the planet
-        restPlanetMockMvc.perform(get("/api/planets/{id}", planet.getId()))
+        restPlanetMockMvc.perform(get("/api/planets/findByid/{id}", planet.getId()))
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
             .andExpect(jsonPath("$.id").value(planet.getId().intValue()))
@@ -254,62 +233,10 @@ public class PlanetResourceIT {
     @Transactional
     public void getNonExistingPlanet() throws Exception {
         // Get the planet
-        restPlanetMockMvc.perform(get("/api/planets/{id}", Long.MAX_VALUE))
+        restPlanetMockMvc.perform(get("/api/planets/findByid/{id}", Long.MAX_VALUE))
             .andExpect(status().isNotFound());
     }
 
-    @Test
-    @Transactional
-    public void updatePlanet() throws Exception {
-        // Initialize the database
-        planetRepository.saveAndFlush(planet);
-
-        int databaseSizeBeforeUpdate = planetRepository.findAll().size();
-
-        // Update the planet
-        Planet updatedPlanet = planetRepository.findById(planet.getId()).get();
-        // Disconnect from session so that the updates on updatedPlanet are not directly saved in db
-        em.detach(updatedPlanet);
-        updatedPlanet
-            .nome(UPDATED_NOME)
-            .clima(UPDATED_CLIMA)
-            .terreno(UPDATED_TERRENO)
-            .aparicoes(UPDATED_APARICOES);
-        PlanetDTO planetDTO = planetMapper.toDto(updatedPlanet);
-
-        restPlanetMockMvc.perform(put("/api/planets")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(TestUtil.convertObjectToJsonBytes(planetDTO)))
-            .andExpect(status().isOk());
-
-        // Validate the Planet in the database
-        List<Planet> planetList = planetRepository.findAll();
-        assertThat(planetList).hasSize(databaseSizeBeforeUpdate);
-        Planet testPlanet = planetList.get(planetList.size() - 1);
-        assertThat(testPlanet.getNome()).isEqualTo(UPDATED_NOME);
-        assertThat(testPlanet.getClima()).isEqualTo(UPDATED_CLIMA);
-        assertThat(testPlanet.getTerreno()).isEqualTo(UPDATED_TERRENO);
-        assertThat(testPlanet.getAparicoes()).isEqualTo(UPDATED_APARICOES);
-    }
-
-    @Test
-    @Transactional
-    public void updateNonExistingPlanet() throws Exception {
-        int databaseSizeBeforeUpdate = planetRepository.findAll().size();
-
-        // Create the Planet
-        PlanetDTO planetDTO = planetMapper.toDto(planet);
-
-        // If the entity doesn't have an ID, it will throw BadRequestAlertException
-        restPlanetMockMvc.perform(put("/api/planets")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(TestUtil.convertObjectToJsonBytes(planetDTO)))
-            .andExpect(status().isBadRequest());
-
-        // Validate the Planet in the database
-        List<Planet> planetList = planetRepository.findAll();
-        assertThat(planetList).hasSize(databaseSizeBeforeUpdate);
-    }
 
     @Test
     @Transactional
